@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
@@ -18,7 +19,7 @@ public class CommandContext {
     private final Member member;
     private boolean isSlash;
     private SlashCommandInteractionEvent slashEvent;
-    private Message message;
+    private ButtonInteractionEvent buttonEvent;
     private String[] args = new String[]{};
 
     public CommandContext(Guild guild, TextChannel textChannel, JDA jda, User user, Member member) {
@@ -29,7 +30,7 @@ public class CommandContext {
         this.member = member;
         this.isSlash = false;
         this.slashEvent = null;
-
+        this.buttonEvent = null;
     }
 
     public static CommandContext fromSlash(final SlashCommandInteractionEvent e) {
@@ -39,6 +40,12 @@ public class CommandContext {
         return ctx;
     }
 
+    public static CommandContext fromButton(final ButtonInteractionEvent e) {
+        CommandContext ctx = new CommandContext(e.getGuild(), e.getChannel().asTextChannel(), e.getJDA(), e.getUser(), e.getMember());
+        ctx.buttonEvent = e;
+        ctx.isSlash = false;
+        return ctx;
+    }
 
     public RestAction<?> reply(String a) {
         if (this.isSlash) {
@@ -64,7 +71,6 @@ public class CommandContext {
         }
     }
 
-
     public boolean hasInput(String input) {
         if (isSlash) {
             for (OptionMapping option : slashEvent.getOptions()) {
@@ -74,7 +80,6 @@ public class CommandContext {
                     }
                 }
             }
-
         }
         return false;
     }
@@ -89,7 +94,6 @@ public class CommandContext {
                     return slashEvent.getOption(optionName).getAsString();
                 }
             }
-
         }
         return null;
     }
@@ -104,13 +108,12 @@ public class CommandContext {
                     return (int) slashEvent.getOption(optionName).getAsLong();
                 }
             }
-
         }
         return -1;
     }
 
     public String fullArgs() {
-        if(getArgs().length == 0 ) return null;
+        if (getArgs().length == 0) return null;
         StringBuilder builder = new StringBuilder(getArgs()[0]);
         for (int i = 1; i < args.length; i++) {
             builder.append(" ").append(getArgs()[i]);
@@ -118,7 +121,7 @@ public class CommandContext {
         return builder.toString();
     }
 
-    public String ArgsOrOption(String optionName) {
+    public String argsOrOption(String optionName) {
         if (!isSlash) {
             return fullArgs();
         }
@@ -131,7 +134,6 @@ public class CommandContext {
             }
         }
         return null;
-
     }
 
     public Guild getGuild() {
@@ -147,11 +149,7 @@ public class CommandContext {
     }
 
     public Message getMessage() {
-        return message;
-    }
-
-    public void setMessage(Message message) {
-        this.message = message;
+        return null;
     }
 
     public SlashCommandInteractionEvent getSlashEvent() {
@@ -184,5 +182,13 @@ public class CommandContext {
 
     public Member getMember() {
         return member;
+    }
+
+    public ButtonInteractionEvent getButtonEvent() {
+        return buttonEvent;
+    }
+
+    public void setButtonEvent(ButtonInteractionEvent buttonEvent) {
+        this.buttonEvent = buttonEvent;
     }
 }

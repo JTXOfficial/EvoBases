@@ -14,7 +14,7 @@ public class OrderMenu extends Command {
     private final EvoBases bot;
 
     public OrderMenu(EvoBases bot) {
-        super("ticketmenu", Permission.ADMINISTRATOR, null, "display ticket menu", null);
+        super("ticketmenu", Permission.UNKNOWN, null, "display ticket menu", null);
 
         this.bot = bot;
         this.bot.getCommandManager().register(this);

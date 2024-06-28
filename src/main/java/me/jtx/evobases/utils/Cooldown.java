@@ -36,12 +36,12 @@ public class Cooldown {
 
         if (existingCooldown != null) {
             existingCooldown.addProperty("startTime", Instant.now().toEpochMilli());
-            existingCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 30 seconds in milliseconds
+            existingCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 1 week in milliseconds
         } else {
             JsonObject newCooldown = new JsonObject();
             newCooldown.addProperty("userId", userId);
             newCooldown.addProperty("startTime", Instant.now().toEpochMilli());
-            newCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 30 seconds in milliseconds
+            newCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 1 week in milliseconds
             cooldowns.add(newCooldown);
         }
 

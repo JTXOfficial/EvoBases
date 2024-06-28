@@ -2,9 +2,11 @@ package me.jtx.evobases;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import me.jtx.evobases.commands.CommandManager;
+import me.jtx.evobases.commands.impl.QueueList;
 import me.jtx.evobases.events.EventListener;
 import me.jtx.evobases.utils.Cooldown;
 import me.jtx.evobases.utils.OrderDetail;
+import me.jtx.evobases.utils.Townhall;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
@@ -19,6 +21,7 @@ public class EvoBases {
     private CommandManager commandManager;
     private OrderDetail orderDetail;
     private Cooldown cooldown;
+    private Townhall townhall;
     private Dotenv dotenv = Dotenv.load();
 
     private final String token = dotenv.get("TOKEN");
@@ -29,6 +32,22 @@ public class EvoBases {
     private final String menuDescription = dotenv.get("MENU_DESCRIPTION");
     private final String menuStartOrderButtonMessage = dotenv.get("MENU_START_ORDER_BUTTON_MESSAGE");
     private final String specialRoleId = dotenv.get("SPECIAL_ROLE_ID");
+    private final String moderationRoleId = dotenv.get("MODERATION_ROLE_ID");
+
+    private String queueMessageId;
+    private String queueChannelId = "1256009683085557790";
+
+    public String getQueueMessageId() {
+        return queueMessageId;
+    }
+
+    public void setQueueMessageId(String queueMessageId) {
+        this.queueMessageId = queueMessageId;
+    }
+
+    public String getQueueChannelId() {
+        return queueChannelId;
+    }
 
     public EvoBases() {
         instance = this;
@@ -36,6 +55,8 @@ public class EvoBases {
         commandManager = new CommandManager(this);
         orderDetail = new OrderDetail();
         cooldown = new Cooldown();
+        townhall = new Townhall();
+
 
         commandManager.initialize();
 
@@ -61,6 +82,10 @@ public class EvoBases {
 
     public OrderDetail getOrderDetail() {
         return orderDetail;
+    }
+
+    public Townhall getTownhall() {
+        return townhall;
     }
 
     public String getToken() {
@@ -91,7 +116,15 @@ public class EvoBases {
         return specialRoleId;
     }
 
+    public String getModerationRoleId() {
+        return moderationRoleId;
+    }
+
     public static void main(String[] args) {
         new EvoBases();
+    }
+
+    public QueueList getQueueListCommand() {
+        return (QueueList) this.getCommandManager().getCommand("queue");
     }
 }

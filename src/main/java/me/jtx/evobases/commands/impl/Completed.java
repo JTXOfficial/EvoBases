@@ -1,11 +1,16 @@
 package me.jtx.evobases.commands.impl;
 
+import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
+import me.jtx.evobases.utils.Global;
+import me.jtx.evobases.utils.OrderDetail;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -14,7 +19,9 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 
+import java.awt.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +47,7 @@ public class Completed extends Command {
         String baseLink = e.getSlashEvent().getOption("baselink").getAsString();
 
         String userId = bot.getOrderDetail().getUserIdByOrderId(orderId);
+
         TextChannel channel = e.getSlashEvent().getJDA().getTextChannelById(bot.getOrderChannelId());
 
         if (bot.getOrderDetail().orderIdExists(orderId)) {
@@ -77,10 +85,48 @@ public class Completed extends Command {
                         ).queue();
                     });
 
+            /**
+             * TODO fix board
+             */
+            /*TextChannel queueChannel = e.getSlashEvent().getJDA().getTextChannelById(bot.getQueueChannelId());
+            queueChannel.retrieveMessageById(bot.getQueueMessageId()).queue(message -> {
+                message.editMessageEmbeds(createQueueEmbed(e)).queue();
+            });*/
 
 
         } else {
             e.getSlashEvent().reply("Order not found.").setEphemeral(true).queue();
         }
+    }
+
+    private MessageEmbed createQueueEmbed(CommandContext e) {
+        List<JsonObject> incompleteOrders = bot.getOrderDetail().getIncompleteOrders();
+
+        EmbedBuilder embed = new EmbedBuilder();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        if (incompleteOrders.isEmpty()) {
+            embed.setTitle("Current Queue")
+                    .setColor(Color.WHITE)
+                    .setDescription("The queue is currently empty.")
+                    .setFooter(Global.footer);
+            return embed.build();
+        }
+
+        for (JsonObject order : incompleteOrders) {
+            String userId = order.get("userId").getAsString();
+            int queueNum = order.get("queueNum").getAsInt();
+            User user = e.getUser().getJDA().getUserById(userId);
+
+            stringBuilder.append("**#").append(queueNum).append("** ").append("<@")
+                    .append(userId).append("> [").append(user.getName()).append("]\n");
+        }
+
+        embed.setTitle("Current Queue")
+                .setColor(Color.WHITE)
+                .setDescription(stringBuilder.toString())
+                .setFooter(Global.footer);
+
+        return embed.build();
     }
 }

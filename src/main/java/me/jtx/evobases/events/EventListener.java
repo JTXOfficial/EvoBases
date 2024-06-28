@@ -1,10 +1,15 @@
 package me.jtx.evobases.events;
 
+import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
+import me.jtx.evobases.commands.impl.QueueList;
+import me.jtx.evobases.utils.Global;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -18,10 +23,12 @@ import net.dv8tion.jda.api.interactions.modals.Modal;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
 import java.awt.*;
+import java.util.List;
 
 public class EventListener extends ListenerAdapter {
 
     private final EvoBases bot;
+    private final int ORDERS_PER_PAGE = 15;
 
     public EventListener(final EvoBases bot) {
         this.bot = bot;
@@ -49,7 +56,9 @@ public class EventListener extends ListenerAdapter {
             EmbedBuilder eb = new EmbedBuilder();
             eb.setTitle("Error")
                     .setDescription("You do not have permission!")
-                    .setColor(Color.RED);
+                    .setColor(Color.RED)
+                    .setFooter(Global.footer);
+            ;
             event.replyEmbeds(eb.build()).setEphemeral(true).queue();
             return;
         }
@@ -71,7 +80,7 @@ public class EventListener extends ListenerAdapter {
                     .build();
 
             TextInput townhallLevel = TextInput.create("townHallLevel", "TownHall Level", TextInputStyle.SHORT)
-                    .setPlaceholder("Only supporting Town Halls 8, 9, 10, 12, 13, 14, 15, 16")
+                    .setPlaceholder("Supports Town Halls " + bot.getTownhall().displaySupportedLevels())
                     .setRequired(true)
                     .build();
 
@@ -86,18 +95,54 @@ public class EventListener extends ListenerAdapter {
                 EmbedBuilder noPermEB = new EmbedBuilder();
                 noPermEB.setTitle("Error")
                         .setDescription("You do not have permission!")
-                        .setColor(Color.RED);
+                        .setColor(Color.RED)
+                        .setFooter(Global.footer);
+                ;
                 event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
                 return;
             }
-
             event.deferEdit().queue();
 
             event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
                     privateChannel.sendMessage("Your order has been started!")).queue();
 
             event.getMessage().editMessageComponents(ActionRow.of(Button.success("startOrderModal", "Start Order").asDisabled())).queue();
+        } else if (event.getComponentId().equals("deleteOrderModal")) {
+            boolean moderationRole = event.getGuild().getMember(event.getUser()).getRoles().stream()
+                    .anyMatch(role -> role.getId().equals(bot.getModerationRoleId()));
+            if (!moderationRole) {
+                EmbedBuilder noPermEB = new EmbedBuilder();
+                noPermEB.setTitle("Error")
+                        .setDescription("You do not have permission!")
+                        .setColor(Color.RED)
+                        .setFooter(Global.footer);
+
+                event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
+                return;
+            }
+
+            String messageId = event.getMessageId();
+
+            bot.getOrderDetail().removeOrder(messageId);
+            bot.getOrderDetail().saveOrder();
+
+            event.reply("Order has been deleted!").setEphemeral(true).queue();
+
+            event.getMessage().delete().queue();
+
         }
+
+        CommandContext ctx = CommandContext.fromButton(event);
+        QueueList queueList = (QueueList) bot.getCommandManager().getCommand("queue");
+        if (queueList != null) {
+            int currentPage = queueList.getPageState(event.getUser().getId());
+            if (event.getComponentId().equals("next")) {
+                queueList.handleFullQueue(ctx, bot.getOrderDetail().getIncompleteOrders(), currentPage + 1);
+            } else if (event.getComponentId().equals("prev")) {
+                queueList.handleFullQueue(ctx, bot.getOrderDetail().getIncompleteOrders(), currentPage - 1);
+            }
+        }
+
     }
 
     @Override
@@ -134,8 +179,8 @@ public class EventListener extends ListenerAdapter {
             int townHallLevel;
             try {
                 townHallLevel = Integer.parseInt(townHallLevelString);
-                if (!isSupportedTownHall(townHallLevel)) {
-                    event.reply("Unsupported Town Hall level. Please choose one of the following: 8, 9, 10, 12, 13, 14, 15, 16.").setEphemeral(true).queue();
+                if (!bot.getTownhall().isSupportedTownHall(townHallLevel)) {
+                    event.reply("Unsupported Town Hall level. Please choose one of the following: " + bot.getTownhall().displaySupportedLevels() + ".").setEphemeral(true).queue();
                     return;
                 }
             } catch (NumberFormatException e) {
@@ -155,31 +200,35 @@ public class EventListener extends ListenerAdapter {
                     .addField("User ID", userId, true)
                     .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
                     .setColor(Color.WHITE)
-                    .setFooter(event.getMessage().getId());
+                    .setFooter(Global.footer + " | " + event.getMessage().getId());
 
             event.deferReply().setEphemeral(true).queue();
 
 
-            event.getJDA().getTextChannelById(bot.getOrderChannelId()).sendMessageEmbeds(eb.build()).addActionRow(
-                    Button.success("startOrderModal", "Start Order")).queue(message -> {
-
+            event.getJDA().getTextChannelById(bot.getOrderChannelId()).sendMessageEmbeds(eb.build()).setActionRow(
+                    Button.success("startOrderModal", "Start Order"),
+                    Button.danger("deleteOrderModal", "Delete Order")
+            ).queue(message -> {
+                // Start Order button handling
                 bot.getOrderDetail().addOrder(userId, message.getId());
                 bot.getOrderDetail().saveOrder();
 
                 event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
-                        privateChannel.sendMessage("Your order has been placed.")).queue();
-
+                        privateChannel.sendMessage("Your order has been placed.")
+                ).queue();
             });
 
+            /**
+             * TODO: fix board
+             */
+            //createQueueEmbed(event);
 
             bot.getCooldown().addCooldown(userId);
             bot.getCooldown().saveCooldown();
         }
     }
 
-    private boolean isSupportedTownHall(int level) {
-        return level == 8 || level == 9 || level == 10 || level == 12 || level == 13 || level == 14 || level == 15 || level == 16;
-    }
+
 
     @Override
     public final void onReady(ReadyEvent event) {
@@ -190,5 +239,36 @@ public class EventListener extends ListenerAdapter {
             System.out.println("Registered a new command: " + cmd.getName());
         }
         commands.queue();
+    }
+
+    private MessageEmbed createQueueEmbed(ModalInteractionEvent e) {
+        List<JsonObject> incompleteOrders = bot.getOrderDetail().getIncompleteOrders();
+
+        EmbedBuilder embed = new EmbedBuilder();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        if (incompleteOrders.isEmpty()) {
+            embed.setTitle("Current Queue")
+                    .setColor(Color.WHITE)
+                    .setDescription("The queue is currently empty.")
+                    .setFooter(Global.footer);
+            return embed.build();
+        }
+
+        for (JsonObject order : incompleteOrders) {
+            String userId = order.get("userId").getAsString();
+            int queueNum = order.get("queueNum").getAsInt();
+            User user = e.getUser().getJDA().getUserById(userId);
+
+            stringBuilder.append("**#").append(queueNum).append("** ").append("<@")
+                    .append(userId).append("> [").append(user.getName()).append("]\n");
+        }
+
+        embed.setTitle("Current Queue")
+                .setColor(Color.WHITE)
+                .setDescription(stringBuilder.toString())
+                .setFooter(Global.footer);
+
+        return embed.build();
     }
 }
