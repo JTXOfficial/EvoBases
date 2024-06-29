@@ -103,7 +103,10 @@ public class EventListener extends ListenerAdapter {
             }
             event.deferEdit().queue();
 
-            event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
+            String messageId = event.getMessage().getId();
+            String userId = bot.getOrderDetail().getUserIdByMessageId(messageId);
+
+            event.getJDA().getUserById(userId).openPrivateChannel().flatMap(privateChannel ->
                     privateChannel.sendMessage("Your order has been started!")).queue();
 
             event.getMessage().editMessageComponents(ActionRow.of(Button.success("startOrderModal", "Start Order").asDisabled())).queue();
@@ -192,25 +195,39 @@ public class EventListener extends ListenerAdapter {
             int orderNum =  bot.getOrderDetail().getHighestOrderNum() + 1;
 
             EmbedBuilder eb = new EmbedBuilder();
-            eb.setTitle("Order #" + orderNum)
-                    .addField("Name", name, true)
-                    .addField("Base Style", baseStyle, true)
-                    .addField("Town Hall Level", townHallLevelString, true)
-                    .addField("User", event.getUser().getAsMention(), true)
-                    .addField("User ID", userId, true)
-                    .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
-                    .setColor(Color.WHITE)
-                    .setFooter(Global.footer + " | " + event.getMessage().getId());
 
-            event.deferReply().setEphemeral(true).queue();
+            if (!hasSpecialRole) {
+                eb.setTitle("Order #" + orderNum)
+                        .addField("Name", name, true)
+                        .addField("Base Style", baseStyle, true)
+                        .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("User", event.getUser().getAsMention(), true)
+                        .addField("User ID", userId, true)
+                        .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
+                        .setColor(Color.WHITE)
+                        .setFooter(Global.footer + " | " + event.getMessage().getId());
+
+                event.deferReply().setEphemeral(true).queue();
+            } else {
+                eb.setTitle("Order #" + orderNum)
+                        .addField("Name", name, true)
+                        .addField("Base Style", baseStyle, true)
+                        .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("User", event.getUser().getAsMention(), true)
+                        .addField("User ID", userId, true)
+                        .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
+                        .setColor(Color.YELLOW)
+                        .setFooter(Global.footer + " | " + event.getMessage().getId());
+
+                event.deferReply().setEphemeral(true).queue();
+            }
 
 
             event.getJDA().getTextChannelById(bot.getOrderChannelId()).sendMessageEmbeds(eb.build()).setActionRow(
                     Button.success("startOrderModal", "Start Order"),
                     Button.danger("deleteOrderModal", "Delete Order")
             ).queue(message -> {
-                // Start Order button handling
-                bot.getOrderDetail().addOrder(userId, message.getId());
+                bot.getOrderDetail().addOrder(userId, message.getId(), hasSpecialRole);
                 bot.getOrderDetail().saveOrder();
 
                 event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->

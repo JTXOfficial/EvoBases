@@ -1,6 +1,8 @@
 package me.jtx.evobases.utils;
 
 import com.google.gson.*;
+import me.jtx.evobases.EvoBases;
+import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 
 import java.io.File;
 import java.io.FileReader;
@@ -8,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -59,9 +62,8 @@ public class OrderDetail {
      * @param userId     The ID of the user who is placing the order.
      * @param messageId  The ID of the message associated with the order.
      */
-    public void addOrder(String userId, String messageId) {
+    public void addOrder(String userId, String messageId, boolean hasSpecialRole) {
         this.orderId = getHighestOrderNum() + 1;
-        this.queueNum = getHighestPosition() + 1;
         this.userId = userId;
         this.completed = false;
         this.messageId = messageId;
@@ -72,8 +74,14 @@ public class OrderDetail {
         order.addProperty("userId", this.userId);
         order.addProperty("completed", this.completed);
         order.addProperty("messageId", this.messageId);
-        orders.add(new Gson().toJsonTree(order));
 
+        if (hasSpecialRole) {
+            insertPriorityOrder(order);
+        } else {
+            orders.add(new Gson().toJsonTree(order));
+            recalculateQueuePositions();
+        }
+        saveOrder();
     }
 
     /**
@@ -110,6 +118,25 @@ public class OrderDetail {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void insertPriorityOrder(JsonObject order) {
+        List<JsonObject> incompleteOrders = getIncompleteOrders();
+        int insertPosition = 0;
+        for (int i = 0; i < incompleteOrders.size(); i++) {
+            JsonObject existingOrder = incompleteOrders.get(i);
+            if (existingOrder.get("userId").getAsString().equals(this.userId)) {
+                insertPosition = i + 1; // Insert after the last special role user
+            }
+        }
+
+        List<JsonElement> orderList = new ArrayList<>();
+        orders.forEach(orderList::add);
+        orderList.add(insertPosition, order);
+        orders = new JsonArray();
+        orderList.forEach(orders::add);
+
+        recalculateQueuePositions();
     }
 
     /**
@@ -182,6 +209,16 @@ public class OrderDetail {
             JsonObject order = orderElement.getAsJsonObject();
             if (order.get("orderId").getAsInt() == orderId) {
                 return order.get("messageId").getAsString();
+            }
+        }
+        return null;
+    }
+
+    public String getUserIdByMessageId(String messageId) {
+        for (JsonElement orderElement : orders) {
+            JsonObject order = orderElement.getAsJsonObject();
+            if (order.get("messageId").getAsString().equals(messageId)) {
+                return order.get("userId").getAsString();
             }
         }
         return null;
