@@ -69,7 +69,7 @@ public class Completed extends Command {
                         }
                     });
 
-                    originalMessage.editMessageEmbeds(updatedEmbed.build()).queue();
+                    originalMessage.editMessageEmbeds(updatedEmbed.setColor(Color.GREEN).build()).queue();
                 });
             }
 

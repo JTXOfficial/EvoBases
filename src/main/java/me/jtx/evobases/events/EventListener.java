@@ -90,7 +90,6 @@ public class EventListener extends ListenerAdapter {
 
             event.replyModal(modal).queue();
         } else if (event.getComponentId().equals("startOrderModal")) {
-
             if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 EmbedBuilder noPermEB = new EmbedBuilder();
                 noPermEB.setTitle("Error")
