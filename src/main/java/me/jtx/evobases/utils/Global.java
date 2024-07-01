@@ -1,6 +1,12 @@
 package me.jtx.evobases.utils;
 
-public class Global {
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
-    public static String footer = "Made by jtxiscool";
+public class Global {
+    public String todayDate() {
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        return today.format(formatter);
+    }
 }

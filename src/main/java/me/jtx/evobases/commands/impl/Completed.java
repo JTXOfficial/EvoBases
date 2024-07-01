@@ -4,8 +4,7 @@ import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
-import me.jtx.evobases.utils.Global;
-import me.jtx.evobases.utils.OrderDetail;
+import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
@@ -17,13 +16,9 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.FileUpload;
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 
 import java.awt.*;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 public class Completed extends Command {
 
@@ -109,7 +104,7 @@ public class Completed extends Command {
             embed.setTitle("Current Queue")
                     .setColor(Color.WHITE)
                     .setDescription("The queue is currently empty.")
-                    .setFooter(Global.footer);
+                    .setFooter(bot.getEmbedDetails().footer);
             return embed.build();
         }
 
@@ -125,7 +120,7 @@ public class Completed extends Command {
         embed.setTitle("Current Queue")
                 .setColor(Color.WHITE)
                 .setDescription(stringBuilder.toString())
-                .setFooter(Global.footer);
+                .setFooter(bot.getEmbedDetails().footer);
 
         return embed.build();
     }

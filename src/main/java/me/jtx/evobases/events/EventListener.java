@@ -6,10 +6,14 @@ import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
 import me.jtx.evobases.commands.impl.QueueList;
 import me.jtx.evobases.utils.Global;
+import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -23,6 +27,7 @@ import net.dv8tion.jda.api.interactions.modals.Modal;
 import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 
 import java.awt.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class EventListener extends ListenerAdapter {
@@ -57,7 +62,7 @@ public class EventListener extends ListenerAdapter {
             eb.setTitle("Error")
                     .setDescription("You do not have permission!")
                     .setColor(Color.RED)
-                    .setFooter(Global.footer);
+                    .setFooter(bot.getEmbedDetails().footer);
             ;
             event.replyEmbeds(eb.build()).setEphemeral(true).queue();
             return;
@@ -95,11 +100,12 @@ public class EventListener extends ListenerAdapter {
                 noPermEB.setTitle("Error")
                         .setDescription("You do not have permission!")
                         .setColor(Color.RED)
-                        .setFooter(Global.footer);
+                        .setFooter(bot.getEmbedDetails().footer);
                 ;
                 event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
                 return;
             }
+
             event.deferEdit().queue();
 
             String messageId = event.getMessage().getId();
@@ -117,7 +123,7 @@ public class EventListener extends ListenerAdapter {
                 noPermEB.setTitle("Error")
                         .setDescription("You do not have permission!")
                         .setColor(Color.RED)
-                        .setFooter(Global.footer);
+                        .setFooter(bot.getEmbedDetails().footer);
 
                 event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
                 return;
@@ -190,6 +196,21 @@ public class EventListener extends ListenerAdapter {
                 return;
             }
 
+            if (bot.getDailyOrderLimit().isResetTimePassed()) {
+                bot.getDailyOrderLimit().resetDailyLimit(bot.getGlobal().todayDate());
+                bot.getDailyOrderLimit().setResetTime(LocalDateTime.now().plusDays(1));
+            }
+
+            if (!hasSpecialRole && bot.getDailyOrderLimit().getCurrentOrderCount(bot.getGlobal().todayDate()) >= bot.getDailyOrderMaxLimit()) {
+                EmbedBuilder limitReachedEB = new EmbedBuilder();
+                limitReachedEB.setTitle("Error")
+                        .setDescription("Sorry, the daily limit has been reached " + bot.getDailyOrderLimit().getCurrentOrderCount(bot.getGlobal().todayDate())
+                                + "/" + (bot.getDailyOrderMaxLimit()) + ". The daily limit resets in " + bot.getDailyOrderLimit().getResetTime() + ".")
+                        .setColor(Color.RED)
+                        .setFooter(bot.getEmbedDetails().footer);
+                event.replyEmbeds(limitReachedEB.build()).setEphemeral(true).queue();
+                return;
+            }
 
             int orderNum =  bot.getOrderDetail().getHighestOrderNum() + 1;
 
@@ -204,7 +225,7 @@ public class EventListener extends ListenerAdapter {
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
                         .setColor(Color.WHITE)
-                        .setFooter(Global.footer + " | " + event.getMessage().getId());
+                        .setFooter(bot.getEmbedDetails().footer + " | " + event.getMessage().getId());
 
                 event.deferReply().setEphemeral(true).queue();
             } else {
@@ -216,7 +237,7 @@ public class EventListener extends ListenerAdapter {
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
                         .setColor(Color.YELLOW)
-                        .setFooter(Global.footer + " | " + event.getMessage().getId());
+                        .setFooter(bot.getEmbedDetails().footer + " | " + event.getMessage().getId());
 
                 event.deferReply().setEphemeral(true).queue();
             }
@@ -227,11 +248,20 @@ public class EventListener extends ListenerAdapter {
                     Button.danger("deleteOrderModal", "Delete Order")
             ).queue(message -> {
                 bot.getOrderDetail().addOrder(userId, message.getId(), hasSpecialRole);
+
+                if (!hasSpecialRole) {
+                    bot.getDailyOrderLimit().incrementOrderCount(bot.getGlobal().todayDate());
+                }
+
                 bot.getOrderDetail().saveOrder();
 
                 event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
                         privateChannel.sendMessage("Your order has been placed.")
                 ).queue();
+
+
+
+                updateOrderMenuEmbed(event.getChannel().asTextChannel(), bot.getOrderMenuMessageId());
             });
 
             /**
@@ -255,36 +285,25 @@ public class EventListener extends ListenerAdapter {
             System.out.println("Registered a new command: " + cmd.getName());
         }
         commands.queue();
+
+        if (bot.getDailyOrderLimit().getResetTime() == null) {
+            bot.getDailyOrderLimit().setResetTime(LocalDateTime.now().plusDays(1));
+        }
     }
 
-    private MessageEmbed createQueueEmbed(ModalInteractionEvent e) {
-        List<JsonObject> incompleteOrders = bot.getOrderDetail().getIncompleteOrders();
+    private void updateOrderMenuEmbed(TextChannel textChannel, String messageId) {
+        String todayDate = bot.getGlobal().todayDate();
+        int currentCount = bot.getDailyOrderLimit().getCurrentOrderCount(todayDate);
+        int maxLimit = bot.getDailyOrderMaxLimit();
 
-        EmbedBuilder embed = new EmbedBuilder();
-        StringBuilder stringBuilder = new StringBuilder();
+        textChannel.retrieveMessageById(messageId).queue(message -> {
+            MessageEmbed embed = message.getEmbeds().get(0);
+            EmbedBuilder updatedEmbed = new EmbedBuilder(embed)
+                    .clearFields()
+                    .addField("Current Count", currentCount + "/" + maxLimit, false);
 
-        if (incompleteOrders.isEmpty()) {
-            embed.setTitle("Current Queue")
-                    .setColor(Color.WHITE)
-                    .setDescription("The queue is currently empty.")
-                    .setFooter(Global.footer);
-            return embed.build();
-        }
-
-        for (JsonObject order : incompleteOrders) {
-            String userId = order.get("userId").getAsString();
-            int queueNum = order.get("queueNum").getAsInt();
-            User user = e.getUser().getJDA().getUserById(userId);
-
-            stringBuilder.append("**#").append(queueNum).append("** ").append("<@")
-                    .append(userId).append("> [").append(user.getName()).append("]\n");
-        }
-
-        embed.setTitle("Current Queue")
-                .setColor(Color.WHITE)
-                .setDescription(stringBuilder.toString())
-                .setFooter(Global.footer);
-
-        return embed.build();
+            message.editMessageEmbeds(updatedEmbed.build()).queue();
+        });
     }
+
 }

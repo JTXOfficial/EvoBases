@@ -3,7 +3,7 @@ package me.jtx.evobases.commands.impl;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
-import me.jtx.evobases.utils.Global;
+import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;
@@ -67,7 +67,7 @@ public class QueueList extends Command {
             eb.setTitle(mentionedUser.getEffectiveName() + " Current Queue")
                     .setColor(Color.WHITE)
                     .setDescription(stringBuilder.toString())
-                    .setFooter(Global.footer);
+                    .setFooter(bot.getEmbedDetails().footer);
             e.getSlashEvent().replyEmbeds(eb.build()).queue();
         }
     }
@@ -95,7 +95,7 @@ public class QueueList extends Command {
         eb.setTitle("Current Queue - Page " + pageNumber + "/" + totalPages)
                 .setColor(Color.WHITE)
                 .setDescription(stringBuilder.toString())
-                .setFooter(Global.footer);
+                .setFooter(bot.getEmbedDetails().footer);
 
         if (e.isSlash()) {
             e.getSlashEvent().replyEmbeds(eb.build())

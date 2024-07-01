@@ -4,9 +4,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 import me.jtx.evobases.commands.CommandManager;
 import me.jtx.evobases.commands.impl.QueueList;
 import me.jtx.evobases.events.EventListener;
-import me.jtx.evobases.utils.Cooldown;
-import me.jtx.evobases.utils.OrderDetail;
-import me.jtx.evobases.utils.Townhall;
+import me.jtx.evobases.utils.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
@@ -22,7 +20,10 @@ public class EvoBases {
     private OrderDetail orderDetail;
     private Cooldown cooldown;
     private Townhall townhall;
+    private DailyOrderLimit dailyOrderLimit;
     private Dotenv dotenv = Dotenv.load();
+    private Global global;
+    private Msg embedDetails;
 
     private final String token = dotenv.get("TOKEN");
     private final String baseShowcaseChannelId = dotenv.get("BASE_SHOWCASE_CHANNEL_ID");
@@ -33,21 +34,8 @@ public class EvoBases {
     private final String menuStartOrderButtonMessage = dotenv.get("MENU_START_ORDER_BUTTON_MESSAGE");
     private final String specialRoleId = dotenv.get("SPECIAL_ROLE_ID");
     private final String moderationRoleId = dotenv.get("MODERATION_ROLE_ID");
-
-    private String queueMessageId;
-    private String queueChannelId = "1256009683085557790";
-
-    public String getQueueMessageId() {
-        return queueMessageId;
-    }
-
-    public void setQueueMessageId(String queueMessageId) {
-        this.queueMessageId = queueMessageId;
-    }
-
-    public String getQueueChannelId() {
-        return queueChannelId;
-    }
+    private final int dailyOrderMaxLimit = Integer.parseInt(dotenv.get("DAILY_ORDER_MAX_LIMIT"));
+    private final String orderMenuMessageId= dotenv.get("ORDER_MENU_MESSAGE_ID");
 
     public EvoBases() {
         instance = this;
@@ -56,6 +44,9 @@ public class EvoBases {
         orderDetail = new OrderDetail();
         cooldown = new Cooldown();
         townhall = new Townhall();
+        dailyOrderLimit = new DailyOrderLimit(this);
+        global = new Global();
+        embedDetails = new Msg();
 
 
         commandManager.initialize();
@@ -88,6 +79,17 @@ public class EvoBases {
         return townhall;
     }
 
+    public DailyOrderLimit getDailyOrderLimit() {
+        return dailyOrderLimit;
+    }
+
+    public Msg getEmbedDetails() {
+        return embedDetails;
+    }
+
+    public Global getGlobal() {
+        return global;
+    }
     public String getToken() {
         return token;
     }
@@ -120,12 +122,16 @@ public class EvoBases {
         return moderationRoleId;
     }
 
-    public static void main(String[] args) {
-        new EvoBases();
+    public int getDailyOrderMaxLimit() {
+        return dailyOrderMaxLimit;
     }
 
-    public QueueList getQueueListCommand() {
-        return (QueueList) this.getCommandManager().getCommand("queue");
+    public String getOrderMenuMessageId() {
+        return orderMenuMessageId;
+    }
+
+    public static void main(String[] args) {
+        new EvoBases();
     }
 
 }

@@ -23,12 +23,16 @@ public class OrderMenu extends Command {
 
     @Override
     public void execute(CommandContext e) {
-
+        String todayDate = bot.getGlobal().todayDate();
+        int currentCount = bot.getDailyOrderLimit().getCurrentOrderCount(todayDate);
+        int maxLimit = bot.getDailyOrderMaxLimit();
 
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle(bot.getMenuTitle())
-                .setDescription(bot.getMenuDescription())
-                .setColor(Color.WHITE);
+                .setDescription(String.format(bot.getMenuDescription(), maxLimit, "\n"))
+                .addField("Current Count", currentCount + "/" + maxLimit, false)
+                .setColor(Color.WHITE)
+                .setFooter(bot.getEmbedDetails().footer);
 
         e.getSlashEvent().deferReply().setEphemeral(true).queue();
 
