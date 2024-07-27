@@ -74,11 +74,15 @@ public class QueueList extends Command {
 
     public void handleFullQueue(CommandContext e, List<JsonObject> incompleteOrders, int pageNumber) {
         StringBuilder stringBuilder = new StringBuilder();
-        int itemsPerPage = 10; // Number of items per page
+        int itemsPerPage = 10;
         int totalPages = (int) Math.ceil((double) incompleteOrders.size() / itemsPerPage);
 
         int startIndex = (pageNumber - 1) * itemsPerPage;
         int endIndex = Math.min(startIndex + itemsPerPage, incompleteOrders.size());
+
+        if (startIndex < 0 || endIndex > incompleteOrders.size() || startIndex >= endIndex) {
+            e.reply("Please run /queue");
+        }
 
         for (int i = startIndex; i < endIndex; i++) {
             JsonObject order = incompleteOrders.get(i);

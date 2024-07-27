@@ -2,10 +2,8 @@ package me.jtx.evobases;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import me.jtx.evobases.commands.CommandManager;
-import me.jtx.evobases.commands.impl.QueueList;
 import me.jtx.evobases.events.EventListener;
 import me.jtx.evobases.utils.*;
-import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
@@ -19,7 +17,7 @@ public class EvoBases {
     private CommandManager commandManager;
     private OrderDetail orderDetail;
     private Cooldown cooldown;
-    private Townhall townhall;
+    private GuildSettings guildSettings;
     private DailyOrderLimit dailyOrderLimit;
     private Dotenv dotenv = Dotenv.load();
     private Global global;
@@ -36,6 +34,12 @@ public class EvoBases {
     private final String moderationRoleId = dotenv.get("MODERATION_ROLE_ID");
     private final int dailyOrderMaxLimit = Integer.parseInt(dotenv.get("DAILY_ORDER_MAX_LIMIT"));
     private final String orderMenuMessageId= dotenv.get("ORDER_MENU_MESSAGE_ID");
+    private final String orderMenuChannelId = dotenv.get("ORDER_MENU_CHANNEL_ID");
+    private final String baseDesignerRoleId = dotenv.get("BASE_DESIGNER_ROLE_ID");
+    private final String orderCompletedMessage = dotenv.get("ORDER_COMPLETED_MESSAGE");
+    private final String orderCompletedEmbedImage = dotenv.get("ORDER_COMPLETED_EMBED_IMAGE");
+    private final String orderCompletedEmbedColorHex = dotenv.get("ORDER_COMPLETED_EMBED_COLOR_HEX");
+    private final String cooldownMessage = dotenv.get("COOLDOWN_MESSAGE");
 
     public EvoBases() {
         instance = this;
@@ -43,7 +47,7 @@ public class EvoBases {
         commandManager = new CommandManager(this);
         orderDetail = new OrderDetail();
         cooldown = new Cooldown();
-        townhall = new Townhall();
+        guildSettings = new GuildSettings();
         dailyOrderLimit = new DailyOrderLimit(this);
         global = new Global();
         embedDetails = new Msg();
@@ -75,8 +79,8 @@ public class EvoBases {
         return orderDetail;
     }
 
-    public Townhall getTownhall() {
-        return townhall;
+    public GuildSettings getGuildSettings() {
+        return guildSettings;
     }
 
     public DailyOrderLimit getDailyOrderLimit() {
@@ -130,6 +134,29 @@ public class EvoBases {
         return orderMenuMessageId;
     }
 
+    public String getOrderMenuChannelId() {
+        return orderMenuChannelId;
+    }
+
+    public String getBaseDesignerRoleId() {
+        return baseDesignerRoleId;
+    }
+
+    public String getOrderCompletedMessage() {
+        return orderCompletedMessage;
+    }
+
+    public String getOrderCompletedEmbedImage() {
+        return orderCompletedEmbedImage;
+    }
+
+    public String getOrderCompletedEmbedColorHex() {
+        return orderCompletedEmbedColorHex;
+    }
+
+    public String getCooldownMessage() {
+        return cooldownMessage;
+    }
     public static void main(String[] args) {
         new EvoBases();
     }

@@ -92,6 +92,15 @@ public class DailyOrderLimit {
         saveOrderDailyLimit();
     }
 
+    public void decrementOrderCount(String date) {
+        int currentCount = dailyLimit.getOrDefault(date, 0);
+        if (currentCount > 0) {
+            dailyLimit.put(date, currentCount - 1);
+            saveOrderDailyLimit();
+        }
+    }
+
+
     public void resetDailyLimit(String date) {
         dailyLimit.put(date, 0);
         saveOrderDailyLimit();

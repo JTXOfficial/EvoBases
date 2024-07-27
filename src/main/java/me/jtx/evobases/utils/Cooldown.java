@@ -36,15 +36,29 @@ public class Cooldown {
 
         if (existingCooldown != null) {
             existingCooldown.addProperty("startTime", Instant.now().toEpochMilli());
-            existingCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 1 week in milliseconds
+            existingCooldown.addProperty("duration", 365 * 24 * 60 * 60 * 1000L); // 1 year in milliseconds
         } else {
             JsonObject newCooldown = new JsonObject();
             newCooldown.addProperty("userId", userId);
             newCooldown.addProperty("startTime", Instant.now().toEpochMilli());
-            newCooldown.addProperty("duration", 7 * 24 * 60 * 60 * 1000L); // 1 week in milliseconds
+            newCooldown.addProperty("duration", 365 * 24 * 60 * 60 * 1000L); // 1 year in milliseconds
             cooldowns.add(newCooldown);
         }
 
+        saveCooldown();
+    }
+
+    public void removeCooldown(String userId) {
+        JsonArray newCooldowns = new JsonArray();
+
+        for (JsonElement element : cooldowns) {
+            JsonObject cooldown = element.getAsJsonObject();
+            if (!cooldown.get("userId").getAsString().equals(userId)) {
+                newCooldowns.add(cooldown);
+            }
+        }
+
+        cooldowns = newCooldowns;
         saveCooldown();
     }
 
@@ -123,6 +137,7 @@ public class Cooldown {
             e.printStackTrace();
         }
     }
+
 
     public void saveCooldown() {
         try {

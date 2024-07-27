@@ -1,16 +1,10 @@
 package me.jtx.evobases.events;
 
-import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
 import me.jtx.evobases.commands.impl.QueueList;
-import me.jtx.evobases.utils.Global;
-import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -29,11 +23,12 @@ import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class EventListener extends ListenerAdapter {
 
     private final EvoBases bot;
-    private final int ORDERS_PER_PAGE = 15;
 
     public EventListener(final EvoBases bot) {
         this.bot = bot;
@@ -79,23 +74,31 @@ public class EventListener extends ListenerAdapter {
                     .setRequired(true)
                     .build();
 
-            TextInput baseStyle = TextInput.create("baseStyle", "Base Style", TextInputStyle.SHORT)
-                    .setPlaceholder("Include the name of the base style you want")
+            TextInput townhallLevel = TextInput.create("townHallLevel", "TownHall Level", TextInputStyle.SHORT)
+                    .setPlaceholder("Supports Town Halls " + bot.getGuildSettings().displaySupportedLevels())
                     .setRequired(true)
                     .build();
 
-            TextInput townhallLevel = TextInput.create("townHallLevel", "TownHall Level", TextInputStyle.SHORT)
-                    .setPlaceholder("Supports Town Halls " + bot.getTownhall().displaySupportedLevels())
+
+            TextInput baseStyleInput = TextInput.create("baseStyle", "Base Style", TextInputStyle.SHORT)
+                    .setPlaceholder("Enter the base style (e.g., Sausage, Evoxq)")
                     .setRequired(true)
                     .build();
+
+            TextInput additionalNotes = TextInput.create("additionalNotes", "Additional Notes", TextInputStyle.PARAGRAPH)
+                    .setRequired(false)
+                    .build();
+
+
 
             Modal modal = Modal.create("orderForm", "Base Order Form")
-                    .addComponents(ActionRow.of(nameInput), ActionRow.of(baseStyle), ActionRow.of(townhallLevel))
+                    .addComponents(ActionRow.of(nameInput), ActionRow.of(townhallLevel), ActionRow.of(baseStyleInput), ActionRow.of(additionalNotes))
                     .build();
 
             event.replyModal(modal).queue();
         } else if (event.getComponentId().equals("startOrderModal")) {
-            if (!event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+            if (!event.getGuild().getMember(event.getUser()).getRoles().stream()
+                    .anyMatch(role -> role.getId().equals(bot.getBaseDesignerRoleId()))) {
                 EmbedBuilder noPermEB = new EmbedBuilder();
                 noPermEB.setTitle("Error")
                         .setDescription("You do not have permission!")
@@ -111,33 +114,31 @@ public class EventListener extends ListenerAdapter {
             String messageId = event.getMessage().getId();
             String userId = bot.getOrderDetail().getUserIdByMessageId(messageId);
 
-            event.getJDA().getUserById(userId).openPrivateChannel().flatMap(privateChannel ->
-                    privateChannel.sendMessage("Your order has been started!")).queue();
+            if (event.getJDA().getUserById(bot.getOrderDetail().getUserId()) != null) {
+                event.getJDA().getUserById(userId).openPrivateChannel().flatMap(privateChannel ->
+                        privateChannel.sendMessage("Your order has been started!")).queue();
+            }
+
+            event.getChannel().retrieveMessageById(messageId).queue(message -> {
+                MessageEmbed embed = message.getEmbeds().get(0);
+                EmbedBuilder updatedEmbed = new EmbedBuilder(embed)
+                        .addField("Claimed By", event.getMember().getAsMention(), false);
+
+                message.editMessageEmbeds(updatedEmbed.build()).queue();
+            });
 
             event.getMessage().editMessageComponents(ActionRow.of(Button.success("startOrderModal", "Start Order").asDisabled())).queue();
         } else if (event.getComponentId().equals("deleteOrderModal")) {
-            boolean moderationRole = event.getGuild().getMember(event.getUser()).getRoles().stream()
-                    .anyMatch(role -> role.getId().equals(bot.getModerationRoleId()));
-            if (!moderationRole) {
-                EmbedBuilder noPermEB = new EmbedBuilder();
-                noPermEB.setTitle("Error")
-                        .setDescription("You do not have permission!")
-                        .setColor(Color.RED)
-                        .setFooter(bot.getEmbedDetails().footer);
+            TextInput deletedReason = TextInput.create("reason", "What's the reason for removing this order?", TextInputStyle.SHORT)
+                    .setPlaceholder("Invalid base.")
+                    .setRequired(true)
+                    .build();
 
-                event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
-                return;
-            }
+            Modal modal = Modal.create("deleteForm", "Removing Order Form")
+                    .addComponents(ActionRow.of(deletedReason))
+                    .build();
 
-            String messageId = event.getMessageId();
-
-            bot.getOrderDetail().removeOrder(messageId);
-            bot.getOrderDetail().saveOrder();
-
-            event.reply("Order has been deleted!").setEphemeral(true).queue();
-
-            event.getMessage().delete().queue();
-
+            event.replyModal(modal).queue();
         }
 
         CommandContext ctx = CommandContext.fromButton(event);
@@ -153,6 +154,7 @@ public class EventListener extends ListenerAdapter {
 
     }
 
+
     @Override
     public void onModalInteraction(ModalInteractionEvent event) {
         if (event.getModalId().equals("orderForm")) {
@@ -164,7 +166,7 @@ public class EventListener extends ListenerAdapter {
                 long remainingTime = bot.getCooldown().getRemainingCooldownTime(userId);
                 String formattedTime = bot.getCooldown().formatCooldownTime(remainingTime);
 
-                event.reply("You are currently on cooldown. Please wait " + formattedTime+ " before placing another order.").setEphemeral(true).queue();
+                event.reply(bot.getCooldownMessage().replace("%time-left%", formattedTime)).setEphemeral(true).queue();
 
                 return;
             }
@@ -173,6 +175,10 @@ public class EventListener extends ListenerAdapter {
             String name = event.getValue("name") != null ? event.getValue("name").getAsString() : null;
             String baseStyle = event.getValue("baseStyle") != null ? event.getValue("baseStyle").getAsString() : null;
             String townHallLevelString = event.getValue("townHallLevel") != null ? event.getValue("townHallLevel").getAsString() : null;
+            String additionalNotes = event.getValue("additionalNotes") != null ? event.getValue("additionalNotes").getAsString() : null;
+
+            Set<String> validBaseStyles = bot.getGuildSettings().getBaseTypes();
+
 
             if (name == null || baseStyle == null || townHallLevelString == null) {
                 event.reply("Please fill out all required fields.").setEphemeral(true).queue();
@@ -184,17 +190,24 @@ public class EventListener extends ListenerAdapter {
                 return;
             }
 
+            if (!validBaseStyles.contains(baseStyle.toLowerCase())) {
+
+                event.reply("Invalid base style. Please enter one of the following: " + bot.getGuildSettings().displayBaseTypes() + ".").setEphemeral(true).queue();
+                return;
+            }
+
             int townHallLevel;
             try {
                 townHallLevel = Integer.parseInt(townHallLevelString);
-                if (!bot.getTownhall().isSupportedTownHall(townHallLevel)) {
-                    event.reply("Unsupported Town Hall level. Please choose one of the following: " + bot.getTownhall().displaySupportedLevels() + ".").setEphemeral(true).queue();
+                if (!bot.getGuildSettings().isSupportedTownHall(townHallLevel)) {
+                    event.reply("Unsupported Town Hall level. Please choose one of the following: " + bot.getGuildSettings().displaySupportedLevels() + ".").setEphemeral(true).queue();
                     return;
                 }
             } catch (NumberFormatException e) {
                 event.reply("Please enter a valid number for the Town Hall level.").setEphemeral(true).queue();
                 return;
             }
+
 
             if (bot.getDailyOrderLimit().isResetTimePassed()) {
                 bot.getDailyOrderLimit().resetDailyLimit(bot.getGlobal().todayDate());
@@ -221,6 +234,7 @@ public class EventListener extends ListenerAdapter {
                         .addField("Name", name, true)
                         .addField("Base Style", baseStyle, true)
                         .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("Additional Notes", additionalNotes, true)
                         .addField("User", event.getUser().getAsMention(), true)
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
@@ -233,6 +247,7 @@ public class EventListener extends ListenerAdapter {
                         .addField("Name", name, true)
                         .addField("Base Style", baseStyle, true)
                         .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("Additional Notes", additionalNotes, false)
                         .addField("User", event.getUser().getAsMention(), true)
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
@@ -255,11 +270,13 @@ public class EventListener extends ListenerAdapter {
 
                 bot.getOrderDetail().saveOrder();
 
-                event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
-                        privateChannel.sendMessage("Your order has been placed.")
-                ).queue();
 
 
+                if (event.getJDA().getUserById(bot.getOrderDetail().getUserId()) != null) {
+                    event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
+                            privateChannel.sendMessage("Your order has been placed.")
+                    ).queue();
+                }
 
                 updateOrderMenuEmbed(event.getChannel().asTextChannel(), bot.getOrderMenuMessageId());
             });
@@ -271,6 +288,75 @@ public class EventListener extends ListenerAdapter {
 
             bot.getCooldown().addCooldown(userId);
             bot.getCooldown().saveCooldown();
+        }
+
+        if (event.getModalId().equals("deleteForm")) {
+            String reason = event.getValue("reason") != null ? event.getValue("reason").getAsString() : null;
+            String messageId = event.getMessage().getId();
+
+            boolean moderationRole = event.getGuild().getMember(event.getUser()).getRoles().stream()
+                    .anyMatch(role -> role.getId().equals(bot.getModerationRoleId()));
+            boolean baseDesignRole = event.getGuild().getMember(event.getUser()).getRoles().stream()
+                    .anyMatch(role -> role.getId().equals(bot.getBaseDesignerRoleId()));
+
+            if (!moderationRole && !baseDesignRole) {
+                EmbedBuilder noPermEB = new EmbedBuilder();
+                noPermEB.setTitle("Error")
+                        .setDescription("You do not have permission!")
+                        .setColor(Color.RED)
+                        .setFooter(bot.getEmbedDetails().footer);
+
+                event.replyEmbeds(noPermEB.build()).setEphemeral(true).queue();
+                return;
+            }
+
+
+            // Retrieve the message to get the user ID
+            event.getChannel().retrieveMessageById(messageId).queue(message -> {
+                List<MessageEmbed> embeds = message.getEmbeds();
+                if (embeds.isEmpty()) {
+                    event.reply("Order not found.").setEphemeral(true).queue();
+                    return;
+                }
+
+                MessageEmbed embed = embeds.get(0);
+                String userId = null;
+                for (MessageEmbed.Field field : embed.getFields()) {
+                    if (field.getName().equalsIgnoreCase("User ID")) {
+                        userId = field.getValue();
+                        break;
+                    }
+                }
+
+                if (userId == null) {
+                    event.reply("User ID not found in the order embed.").setEphemeral(true).queue();
+                    return;
+                }
+
+                User user = event.getJDA().getUserById(userId);
+
+                if (user != null) {
+                    user.openPrivateChannel().flatMap(privateChannel ->
+                            privateChannel.sendMessage("Your order has been deleted for the following reason: " + reason)
+                    ).queue();
+
+                    boolean hasSpecialRole = event.getGuild().getMemberById(userId).getRoles().stream()
+                            .anyMatch(role -> role.getId().equals(bot.getSpecialRoleId()));
+
+                    if (!hasSpecialRole) {
+                        bot.getDailyOrderLimit().decrementOrderCount(bot.getGlobal().todayDate());
+                    }
+                }
+
+
+                bot.getOrderDetail().removeOrder(messageId);
+                bot.getOrderDetail().saveOrder();
+                message.delete().queue();
+                event.reply("Order has been deleted!").setEphemeral(true).queue();
+                bot.getCooldown().removeCooldown(userId);
+
+                updateOrderMenuEmbed(event.getJDA().getTextChannelById(bot.getOrderMenuChannelId()), bot.getOrderMenuMessageId());
+            });
         }
     }
 
@@ -287,6 +373,7 @@ public class EventListener extends ListenerAdapter {
         commands.queue();
 
         if (bot.getDailyOrderLimit().getResetTime() == null) {
+            System.out.println("I was reset good or bad???");
             bot.getDailyOrderLimit().setResetTime(LocalDateTime.now().plusDays(1));
         }
     }
