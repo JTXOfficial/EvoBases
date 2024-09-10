@@ -89,6 +89,7 @@ public class Completed extends Command {
                     .queue(message -> {
                         String messageLink = "https://discord.com/channels/" + userBase.getGuild().getId() + "/" + userBase.getId() + "/" + message.getId();
                         EmbedBuilder embed = new EmbedBuilder();
+                        embed.setTitle(bot.getOrderCompletedTitle());
                         embed.setDescription(bot.getOrderCompletedMessage().replace("%base-link%", messageLink))
                                 .setColor(Color.decode(bot.getOrderCompletedEmbedColorHex()))
                                 .setImage(bot.getOrderCompletedEmbedImage());

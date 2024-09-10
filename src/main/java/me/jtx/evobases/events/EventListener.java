@@ -4,6 +4,7 @@ import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
 import me.jtx.evobases.commands.impl.QueueList;
+import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
@@ -81,9 +82,15 @@ public class EventListener extends ListenerAdapter {
 
 
             TextInput baseStyleInput = TextInput.create("baseStyle", "Base Style", TextInputStyle.SHORT)
-                    .setPlaceholder("Enter the base style (e.g., Sausage, Evoxq)")
+                    .setPlaceholder("Enter the base style (e.g., Standard, Cursive)")
                     .setRequired(true)
                     .build();
+
+            TextInput ornamentation = TextInput.create("ornamentation", "Ornamentation", TextInputStyle.PARAGRAPH)
+                    .setPlaceholder("Enter the ornamentation (e.g., crown on top, underline)")
+                    .setRequired(false)
+                    .build();
+
 
             TextInput additionalNotes = TextInput.create("additionalNotes", "Additional Notes", TextInputStyle.PARAGRAPH)
                     .setRequired(false)
@@ -92,7 +99,7 @@ public class EventListener extends ListenerAdapter {
 
 
             Modal modal = Modal.create("orderForm", "Base Order Form")
-                    .addComponents(ActionRow.of(nameInput), ActionRow.of(townhallLevel), ActionRow.of(baseStyleInput), ActionRow.of(additionalNotes))
+                    .addComponents(ActionRow.of(nameInput), ActionRow.of(townhallLevel), ActionRow.of(baseStyleInput), ActionRow.of(ornamentation), ActionRow.of(additionalNotes))
                     .build();
 
             event.replyModal(modal).queue();
@@ -114,10 +121,15 @@ public class EventListener extends ListenerAdapter {
             String messageId = event.getMessage().getId();
             String userId = bot.getOrderDetail().getUserIdByMessageId(messageId);
 
-            if (event.getJDA().getUserById(bot.getOrderDetail().getUserId()) != null) {
+            EmbedBuilder eb = new EmbedBuilder();
+            eb.setTitle(bot.getOrderStartedTitle());
+            eb.setDescription(bot.getOrderStartedMessage());
+            eb.setColor(Color.decode(bot.getOrderStartedColor()));
+            if (event.getJDA().getUserById(userId) != null) {
                 event.getJDA().getUserById(userId).openPrivateChannel().flatMap(privateChannel ->
-                        privateChannel.sendMessage("Your order has been started!")).queue();
+                        privateChannel.sendMessageEmbeds(eb.build())).queue();
             }
+
 
             event.getChannel().retrieveMessageById(messageId).queue(message -> {
                 MessageEmbed embed = message.getEmbeds().get(0);
@@ -158,6 +170,7 @@ public class EventListener extends ListenerAdapter {
     @Override
     public void onModalInteraction(ModalInteractionEvent event) {
         if (event.getModalId().equals("orderForm")) {
+
             String userId = event.getUser().getId();
             boolean hasSpecialRole = event.getGuild().getMember(event.getUser()).getRoles().stream()
                     .anyMatch(role -> role.getId().equals(bot.getSpecialRoleId()));
@@ -175,6 +188,7 @@ public class EventListener extends ListenerAdapter {
             String name = event.getValue("name") != null ? event.getValue("name").getAsString() : null;
             String baseStyle = event.getValue("baseStyle") != null ? event.getValue("baseStyle").getAsString() : null;
             String townHallLevelString = event.getValue("townHallLevel") != null ? event.getValue("townHallLevel").getAsString() : null;
+            String ornamentation = event.getValue("ornamentation") != null ? event.getValue("ornamentation").getAsString() : null;
             String additionalNotes = event.getValue("additionalNotes") != null ? event.getValue("additionalNotes").getAsString() : null;
 
             Set<String> validBaseStyles = bot.getGuildSettings().getBaseTypes();
@@ -234,27 +248,29 @@ public class EventListener extends ListenerAdapter {
                         .addField("Name", name, true)
                         .addField("Base Style", baseStyle, true)
                         .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("Ornamentation", ornamentation, true)
                         .addField("Additional Notes", additionalNotes, true)
                         .addField("User", event.getUser().getAsMention(), true)
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
                         .setColor(Color.WHITE)
                         .setFooter(bot.getEmbedDetails().footer + " | " + event.getMessage().getId());
+                    event.deferReply().setEphemeral(true).queue();
 
-                event.deferReply().setEphemeral(true).queue();
             } else {
                 eb.setTitle("Order #" + orderNum)
                         .addField("Name", name, true)
                         .addField("Base Style", baseStyle, true)
                         .addField("Town Hall Level", townHallLevelString, true)
+                        .addField("Ornamentation", ornamentation, true)
                         .addField("Additional Notes", additionalNotes, false)
                         .addField("User", event.getUser().getAsMention(), true)
                         .addField("User ID", userId, true)
                         .addField("Completed", String.valueOf(bot.getOrderDetail().isCompleted()), true)
                         .setColor(Color.YELLOW)
                         .setFooter(bot.getEmbedDetails().footer + " | " + event.getMessage().getId());
-
                 event.deferReply().setEphemeral(true).queue();
+
             }
 
 
@@ -270,15 +286,22 @@ public class EventListener extends ListenerAdapter {
 
                 bot.getOrderDetail().saveOrder();
 
+                EmbedBuilder eb2 = new EmbedBuilder();
+                eb2.setTitle(bot.getOrderCreatedTitle());
+                eb2.setDescription(bot.getOrderCreatedMessage());
+                eb2.setFooter(bot.getEmbedDetails().footer);
+                eb2.setColor(Color.decode(bot.getOrderCreatedColor()));
 
 
                 if (event.getJDA().getUserById(bot.getOrderDetail().getUserId()) != null) {
                     event.getJDA().getUserById(bot.getOrderDetail().getUserId()).openPrivateChannel().flatMap(privateChannel ->
-                            privateChannel.sendMessage("Your order has been placed.")
+                            privateChannel.sendMessageEmbeds(eb2.build())
                     ).queue();
                 }
 
                 updateOrderMenuEmbed(event.getChannel().asTextChannel(), bot.getOrderMenuMessageId());
+                updateOrderStatus(event);
+                event.getHook().deleteOriginal().queue();
             });
 
             /**
@@ -288,6 +311,8 @@ public class EventListener extends ListenerAdapter {
 
             bot.getCooldown().addCooldown(userId);
             bot.getCooldown().saveCooldown();
+
+
         }
 
         if (event.getModalId().equals("deleteForm")) {
@@ -335,9 +360,16 @@ public class EventListener extends ListenerAdapter {
 
                 User user = event.getJDA().getUserById(userId);
 
+                EmbedBuilder eb = new EmbedBuilder();
+                eb.setTitle(bot.getOrderDeletedTitle());
+                eb.setDescription(bot.getOrderDeletedMessage().replace("%reason%", reason));
+                eb.setFooter(bot.getEmbedDetails().footer);
+                eb.setColor(Color.decode(bot.getOrderDeletedColor()));
+
+
                 if (user != null) {
                     user.openPrivateChannel().flatMap(privateChannel ->
-                            privateChannel.sendMessage("Your order has been deleted for the following reason: " + reason)
+                            privateChannel.sendMessageEmbeds(eb.build())
                     ).queue();
 
                     boolean hasSpecialRole = event.getGuild().getMemberById(userId).getRoles().stream()
@@ -357,6 +389,35 @@ public class EventListener extends ListenerAdapter {
 
                 updateOrderMenuEmbed(event.getJDA().getTextChannelById(bot.getOrderMenuChannelId()), bot.getOrderMenuMessageId());
             });
+        }
+
+        if (event.getModalId().equals("reviewModal")) {
+            event.deferReply().setEphemeral(true).queue();
+
+            String stars = event.getValue("ratingNumber") != null ? event.getValue("ratingNumber").getAsString() : null;
+            String review = event.getValue("review") != null ? event.getValue("review").getAsString() : null;
+
+            if (stars == null || review == null) {
+                event.reply("Please fill out all required fields.").setEphemeral(true).queue();
+                return;
+            }
+
+            if (Integer.parseInt(stars) < 1 || Integer.parseInt(stars) > 5) {
+                event.reply("Stars must be between 1 and 5").setEphemeral(true).queue();
+                return;
+            }
+
+            String emoji = "⭐".repeat(Math.max(0, Integer.parseInt(stars)));
+
+            EmbedBuilder eb = new EmbedBuilder();
+            eb.setTitle("Review from " + event.getUser().getName());
+            eb.setDescription("**Rated:** " + emoji + "\n\n**Review:** " + review);
+            eb.setColor(Color.YELLOW);
+            eb.setFooter(bot.getEmbedDetails().footer);
+
+            event.getJDA().getTextChannelById(bot.getReviewChannelID()).sendMessageEmbeds(eb.build()).queue();
+
+            event.getHook().sendMessage("Thank you for your review!").setEphemeral(true).queue();
         }
     }
 
@@ -388,6 +449,36 @@ public class EventListener extends ListenerAdapter {
             EmbedBuilder updatedEmbed = new EmbedBuilder(embed)
                     .clearFields()
                     .addField("Current Count", currentCount + "/" + maxLimit, false);
+
+            message.editMessageEmbeds(updatedEmbed.build()).queue();
+        });
+    }
+
+    private void updateOrderStatus(ModalInteractionEvent e) {
+        int incompleteOrderCount = bot.getOrderDetail().getIncompleteOrders().size();
+
+        String status;
+
+        String messageLink = "https://discord.com/channels/1254738644711903303/1254790165290029076";
+        Color embedColor;
+
+        if (incompleteOrderCount <= 30) {
+            status = ":green_circle:- There is a short queue for bases right now! get your order in a sit tight!\n\nPlease be patient and keep a eye on" + messageLink+ " for your base!";
+            embedColor = Color.GREEN;
+        } else if (incompleteOrderCount <= 100) {
+            status = ":orange_circle:- There is a average queue for your base if you have just ordered!\n\nPlease be patient and keep a eye on" + messageLink+ " for your base!";
+            embedColor = Color.ORANGE;
+        } else {
+            status = ":red_circle:- There is a long wait for bases currently if you have just ordered!\n\nPlease be patient and keep a eye on" + messageLink+ " for your base!";
+            embedColor = Color.red;
+        }
+
+        e.getJDA().getTextChannelById("1255080970323755079").retrieveMessageById(bot.getUpdateOrderMessageId()).queue(message -> {
+            MessageEmbed embed = message.getEmbeds().get(0);
+            EmbedBuilder updatedEmbed = new EmbedBuilder(embed)
+                    .clearFields()
+                    .setDescription(status)
+                            .setColor(embedColor);
 
             message.editMessageEmbeds(updatedEmbed.build()).queue();
         });

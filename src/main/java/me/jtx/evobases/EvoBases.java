@@ -36,10 +36,24 @@ public class EvoBases {
     private final String orderMenuMessageId= dotenv.get("ORDER_MENU_MESSAGE_ID");
     private final String orderMenuChannelId = dotenv.get("ORDER_MENU_CHANNEL_ID");
     private final String baseDesignerRoleId = dotenv.get("BASE_DESIGNER_ROLE_ID");
+    private final String orderCompletedTitle= dotenv.get("ORDER_COMPLETED_TITLE");
     private final String orderCompletedMessage = dotenv.get("ORDER_COMPLETED_MESSAGE");
     private final String orderCompletedEmbedImage = dotenv.get("ORDER_COMPLETED_EMBED_IMAGE");
     private final String orderCompletedEmbedColorHex = dotenv.get("ORDER_COMPLETED_EMBED_COLOR_HEX");
     private final String cooldownMessage = dotenv.get("COOLDOWN_MESSAGE");
+    private final String orderCreatedMessage = dotenv.get("ORDER_CREATED_MESSAGE");
+    private final String orderDeletedMessage = dotenv.get("ORDER_DELETED_MESSAGE");
+    private final String orderCreatedTitle = dotenv.get("ORDER_CREATED_TITLE");
+    private final String orderCreatedColor = dotenv.get("ORDER_CREATED_COLOR");
+    private final String orderDeletedTitle = dotenv.get("ORDER_DELETED_TITLE");
+    private final String orderDeletedColor = dotenv.get("ORDER_DELETED_COLOR");
+    private final String updateOrderMessageId = dotenv.get("UPDATE_ORDER_MESSAGE_ID");
+    private final String orderStartedTitle = dotenv.get("ORDER_STARTED_TITLE");
+    private final String orderStartedMessage = dotenv.get("ORDER_STARTED_MESSAGE");
+    private final String orderStartedColor = dotenv.get("ORDER_STARTED_COLOR");
+    private final String reviewChannelID = dotenv.get("REVIEW_CHANNEL_ID");
+
+
 
     public EvoBases() {
         instance = this;
@@ -157,6 +171,55 @@ public class EvoBases {
     public String getCooldownMessage() {
         return cooldownMessage;
     }
+
+    public String getOrderDeletedMessage() {
+        return orderDeletedMessage;
+    }
+
+    public String getOrderCreatedMessage() {
+        return orderCreatedMessage;
+    }
+
+    public String getOrderDeletedTitle() {
+        return orderDeletedTitle;
+    }
+
+    public String getOrderCreatedColor() {
+        return orderCreatedColor;
+    }
+
+    public String getOrderCreatedTitle() {
+        return orderCreatedTitle;
+    }
+
+    public String getOrderDeletedColor() {
+        return orderDeletedColor;
+    }
+
+    public String getUpdateOrderMessageId() {
+        return updateOrderMessageId;
+    }
+
+    public String getOrderStartedMessage() {
+        return orderStartedMessage;
+    }
+
+    public String getOrderStartedTitle() {
+        return orderStartedTitle;
+    }
+
+    public String getOrderStartedColor() {
+        return orderStartedColor;
+    }
+
+    public String getOrderCompletedTitle() {
+        return orderCompletedTitle;
+    }
+
+    public String getReviewChannelID() {
+        return reviewChannelID;
+    }
+
     public static void main(String[] args) {
         new EvoBases();
     }

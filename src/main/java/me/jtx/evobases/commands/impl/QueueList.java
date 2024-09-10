@@ -88,7 +88,7 @@ public class QueueList extends Command {
             JsonObject order = incompleteOrders.get(i);
             String userId = order.get("userId").getAsString();
             int queueNum = order.get("queueNum").getAsInt();
-            User user = e.getJDA().getUserById(userId);
+            User user = e.getJDA().retrieveUserById(userId).complete();
             if (user != null) {
                 stringBuilder.append("**#").append(queueNum).append("** ")
                         .append("<@").append(userId).append("> [").append(user.getName()).append("]\n");

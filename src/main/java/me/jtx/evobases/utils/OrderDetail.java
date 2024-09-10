@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -252,7 +253,7 @@ public class OrderDetail {
     /**
      * Recalculates the queue positions of the orders.
      */
-    private void recalculateQueuePositions() {
+    public void recalculateQueuePositions() {
         int position = 1;
         for (JsonElement order : orders) {
             JsonObject orderObj = order.getAsJsonObject();
@@ -260,6 +261,7 @@ public class OrderDetail {
                 orderObj.addProperty("queueNum", position++);
             }
         }
+        saveOrder();
     }
 
     /**
@@ -297,6 +299,36 @@ public class OrderDetail {
                 }
             }
         }
+    }
+
+    public void autoAdjustQueue() {
+        List<JsonObject> incompleteOrders = getIncompleteOrders();
+
+
+        incompleteOrders.sort(Comparator.comparingInt(o -> o.get("queueNum").getAsInt()));
+
+        int expectedQueueNum = 1;
+
+
+        for (JsonObject order : incompleteOrders) {
+            System.out.println(order);
+            int currentQueueNum = order.get("queueNum").getAsInt();
+            System.out.println(currentQueueNum + " - Current");
+            System.out.println("Expected - " + expectedQueueNum);
+
+
+            if (currentQueueNum != expectedQueueNum) {
+                order.addProperty("queueNum", expectedQueueNum);
+                System.out.println("Not expected " + expectedQueueNum);
+            }
+
+            expectedQueueNum++;
+
+
+
+        }
+
+        saveOrder();
     }
 
     /**
