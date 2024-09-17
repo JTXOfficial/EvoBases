@@ -38,8 +38,8 @@ build/
 .DS_Store
 
 .env
-.Cooldown.json
-.DailyOrderLimit.json
-.Orders.json
-.GuildSettings.json
+oooldown.json
+DailyOrderLimit.json
+Orders.json
+GuildSettings.json
 OrderEmbedDetails.json
