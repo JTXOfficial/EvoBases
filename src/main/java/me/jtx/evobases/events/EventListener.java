@@ -1,14 +1,20 @@
 package me.jtx.evobases.events;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
 import me.jtx.evobases.commands.impl.QueueList;
 import me.jtx.evobases.utils.Msg;
+import me.jtx.evobases.utils.OrderEmbedDetails;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -26,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class EventListener extends ListenerAdapter {
 
@@ -97,7 +104,6 @@ public class EventListener extends ListenerAdapter {
                     .build();
 
 
-
             Modal modal = Modal.create("orderForm", "Base Order Form")
                     .addComponents(ActionRow.of(nameInput), ActionRow.of(townhallLevel), ActionRow.of(baseStyleInput), ActionRow.of(ornamentation), ActionRow.of(additionalNotes))
                     .build();
@@ -164,6 +170,86 @@ public class EventListener extends ListenerAdapter {
             }
         }
 
+        String messageId = event.getMessageId();
+        String userId = event.getUser().getId();
+
+        OrderEmbedDetails orderEmbedDetails = bot.getOrderEmbedDetails();
+        JsonArray embedData = orderEmbedDetails.getUniqueUsers();
+
+        JsonObject data = null;
+        for (JsonElement element : embedData) {
+            JsonObject jsonObject = element.getAsJsonObject();
+            if (jsonObject.get("messageId").getAsString().equals(messageId)) {
+                data = jsonObject;
+                break;
+            }
+        }
+
+        if (data == null) {
+            data = new JsonObject();
+            data.addProperty("messageId", messageId);
+            data.addProperty("downloadCount", 0);
+            data.add("uniqueUsers", new JsonArray());
+            embedData.add(data);
+        }
+
+        final JsonObject finalData = data;
+        final JsonArray uniqueUsers = data.getAsJsonArray("uniqueUsers");
+
+        if (event.getComponentId().equals("link:")) {
+            boolean isNewUser = true;
+
+            for (JsonElement userElement : uniqueUsers) {
+                if (userElement.getAsString().equals(userId)) {
+                    isNewUser = false;
+                    break;
+                }
+            }
+
+            if (isNewUser) {
+                uniqueUsers.add(userId);
+                int downloadCount = finalData.get("downloadCount").getAsInt();
+                finalData.addProperty("downloadCount", downloadCount + 1);
+            }
+
+            event.reply(bot.baseUrl).setEphemeral(true).queue(interactionHook -> {
+                event.getMessage().editMessageComponents(
+                        ActionRow.of(
+                                Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")),
+                                Button.secondary("downloads:", "Downloads (" + finalData.get("downloadCount").getAsInt() + ")"))
+                ).queue();
+
+                orderEmbedDetails.saveEmbedData();
+            });
+
+
+        } else if (event.getComponentId().equals("downloads:")) {
+            event.deferReply(true).queue(interactionHook -> {
+                String userList = StreamSupport.stream(uniqueUsers.spliterator(), false)
+                        .map(JsonElement::getAsString)
+                        .map(id -> "<@" + id + ">")
+                        .collect(Collectors.joining(", "));
+
+                EmbedBuilder eb = new EmbedBuilder();
+                eb.setColor(Color.WHITE);
+                eb.setTitle("Base Downloads:");
+                eb.setDescription(userList);
+
+                interactionHook.sendMessageEmbeds(eb.build()).queue();
+
+                orderEmbedDetails.saveEmbedData();
+            });
+        }
+
+
+    }
+
+    private void updateDownloadButton(Message eventMessage, JsonObject finalData) {
+        eventMessage.editMessageComponents(
+                ActionRow.of(
+                        Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")).withUrl(bot.baseUrl),
+                        Button.secondary("downloads:", "Downloads (" + finalData.get("downloadCount").getAsInt() + ")"))
+        ).queue();
     }
 
 

@@ -37,8 +37,9 @@ build/
 ### Mac OS ###
 .DS_Store
 
-/src/main/resources/.env
+.env
 .Cooldown.json
 .DailyOrderLimit.json
 .Orders.json
 .GuildSettings.json
+OrderEmbedDetails.json

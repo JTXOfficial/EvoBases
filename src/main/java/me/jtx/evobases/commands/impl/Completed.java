@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import me.jtx.evobases.EvoBases;
 import me.jtx.evobases.commands.Command;
 import me.jtx.evobases.commands.CommandContext;
-import me.jtx.evobases.utils.Msg;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
@@ -18,7 +17,6 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.FileUpload;
 
 import java.awt.*;
-import java.io.File;
 import java.util.List;
 
 public class Completed extends Command {
@@ -54,6 +52,7 @@ public class Completed extends Command {
         int orderId = e.getSlashEvent().getOption("orderid").getAsInt();
         Message.Attachment image = e.getSlashEvent().getOption("image").getAsAttachment();
         String baseLink = e.getSlashEvent().getOption("baselink").getAsString();
+        bot.baseUrl = baseLink;
 
         String userId = bot.getOrderDetail().getUserIdByOrderId(orderId);
 
@@ -83,11 +82,35 @@ public class Completed extends Command {
             }
             TextChannel userBase = e.getSlashEvent().getJDA().getTextChannelById(bot.getBaseShowcaseChannelId());
 
-            userBase.sendMessage("Base for <@" + userId + "> \nDesigned by: " + e.getUser().getEffectiveName())
+            /*userBase.sendMessage("Base for <@" + userId + "> \nDesigned by: " + e.getUser().getEffectiveName())
                     .addFiles(FileUpload.fromData(image.getProxy().download().join(), image.getFileName()))
                     .addActionRow(Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")).withUrl(baseLink))
-                    .queue(message -> {
+                    .addActionRow(Button.secondary("downloads:", "Downloads")).queue(message -> {
                         String messageLink = "https://discord.com/channels/" + userBase.getGuild().getId() + "/" + userBase.getId() + "/" + message.getId();
+                        EmbedBuilder embed = new EmbedBuilder();
+                        embed.setTitle(bot.getOrderCompletedTitle());
+                        embed.setDescription(bot.getOrderCompletedMessage().replace("%base-link%", messageLink))
+                                .setColor(Color.decode(bot.getOrderCompletedEmbedColorHex()))
+                                .setImage(bot.getOrderCompletedEmbedImage());
+
+                        if (e.getSlashEvent().getJDA().getUserById(userId) != null) {
+                            e.getSlashEvent().getJDA().getUserById(userId).openPrivateChannel().flatMap(privateChannel ->
+                                    privateChannel.sendMessageEmbeds(embed.build())
+                            ).queue();
+                        }
+                    });*/
+
+            userBase.sendMessage("Base for <@" + userId + "> \nDesigned by: " + e.getUser().getEffectiveName())
+                    .addFiles(FileUpload.fromData(image.getProxy().download().join(), image.getFileName()))
+                    .addActionRow(
+                            Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")),
+                            Button.secondary("downloads:", "Downloads"))
+                    .queue(message -> {
+
+                        bot.getOrderEmbedDetails().saveEmbedData();
+
+                        String messageLink = "https://discord.com/channels/" + userBase.getGuild().getId() + "/" + userBase.getId() + "/" + message.getId();
+
                         EmbedBuilder embed = new EmbedBuilder();
                         embed.setTitle(bot.getOrderCompletedTitle());
                         embed.setDescription(bot.getOrderCompletedMessage().replace("%base-link%", messageLink))

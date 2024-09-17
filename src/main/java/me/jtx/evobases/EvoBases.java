@@ -22,6 +22,7 @@ public class EvoBases {
     private Dotenv dotenv = Dotenv.load();
     private Global global;
     private Msg embedDetails;
+    private OrderEmbedDetails orderEmbedDetails;
 
     private final String token = dotenv.get("TOKEN");
     private final String baseShowcaseChannelId = dotenv.get("BASE_SHOWCASE_CHANNEL_ID");
@@ -53,6 +54,7 @@ public class EvoBases {
     private final String orderStartedColor = dotenv.get("ORDER_STARTED_COLOR");
     private final String reviewChannelID = dotenv.get("REVIEW_CHANNEL_ID");
 
+    public String baseUrl = "";
 
 
     public EvoBases() {
@@ -65,6 +67,7 @@ public class EvoBases {
         dailyOrderLimit = new DailyOrderLimit(this);
         global = new Global();
         embedDetails = new Msg();
+        orderEmbedDetails = new OrderEmbedDetails();
 
 
         commandManager.initialize();
@@ -218,6 +221,10 @@ public class EvoBases {
 
     public String getReviewChannelID() {
         return reviewChannelID;
+    }
+
+    public OrderEmbedDetails getOrderEmbedDetails() {
+        return orderEmbedDetails;
     }
 
     public static void main(String[] args) {
