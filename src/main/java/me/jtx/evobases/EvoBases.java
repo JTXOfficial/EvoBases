@@ -54,8 +54,6 @@ public class EvoBases {
     private final String orderStartedColor = dotenv.get("ORDER_STARTED_COLOR");
     private final String reviewChannelID = dotenv.get("REVIEW_CHANNEL_ID");
 
-    public String baseUrl = "";
-
 
     public EvoBases() {
         instance = this;

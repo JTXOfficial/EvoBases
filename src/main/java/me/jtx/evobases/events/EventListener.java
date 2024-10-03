@@ -174,27 +174,15 @@ public class EventListener extends ListenerAdapter {
         String userId = event.getUser().getId();
 
         OrderEmbedDetails orderEmbedDetails = bot.getOrderEmbedDetails();
-        JsonArray embedData = orderEmbedDetails.getUniqueUsers();
 
-        JsonObject data = null;
-        for (JsonElement element : embedData) {
-            JsonObject jsonObject = element.getAsJsonObject();
-            if (jsonObject.get("messageId").getAsString().equals(messageId)) {
-                data = jsonObject;
-                break;
-            }
-        }
+        JsonObject data = orderEmbedDetails.getJsonObjectByMessageId(messageId);
 
-        if (data == null) {
-            data = new JsonObject();
-            data.addProperty("messageId", messageId);
-            data.addProperty("downloadCount", 0);
-            data.add("uniqueUsers", new JsonArray());
-            embedData.add(data);
-        }
+        System.out.println(data);
 
         final JsonObject finalData = data;
+
         final JsonArray uniqueUsers = data.getAsJsonArray("uniqueUsers");
+
 
         if (event.getComponentId().equals("link:")) {
             boolean isNewUser = true;
@@ -212,7 +200,7 @@ public class EventListener extends ListenerAdapter {
                 finalData.addProperty("downloadCount", downloadCount + 1);
             }
 
-            event.reply(bot.baseUrl).setEphemeral(true).queue(interactionHook -> {
+            event.reply(bot.getOrderEmbedDetails().getBaseLinkByMessageId(messageId)).setEphemeral(true).queue(interactionHook -> {
                 event.getMessage().editMessageComponents(
                         ActionRow.of(
                                 Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")),
@@ -244,13 +232,6 @@ public class EventListener extends ListenerAdapter {
 
     }
 
-    private void updateDownloadButton(Message eventMessage, JsonObject finalData) {
-        eventMessage.editMessageComponents(
-                ActionRow.of(
-                        Button.secondary("link:", "Link").withEmoji(Emoji.fromUnicode("U+1F517")).withUrl(bot.baseUrl),
-                        Button.secondary("downloads:", "Downloads (" + finalData.get("downloadCount").getAsInt() + ")"))
-        ).queue();
-    }
 
 
     @Override
